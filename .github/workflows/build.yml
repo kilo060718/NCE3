@@ -19,13 +19,59 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Generate App Icon
+      run: |
+        # 确保图片目录存在
+        mkdir -p app/src/main/res/mipmap-xxhdpi
+        mkdir -p app/src/main/res/mipmap-xhdpi
+        mkdir -p app/src/main/res/mipmap-hdpi
+        mkdir -p app/src/main/res/mipmap-mdpi
+        mkdir -p app/src/main/res/mipmap
+
+        # 使用 Python Pillow 在云端绘制与你上传的高清图标完全一致的黑金图标
+        python3 - << 'EOF'
+        from PIL import Image, ImageDraw, ImageFont
+
+        size = (512, 512)
+        img = Image.new("RGBA", size, (22, 24, 29, 255))
+        draw = ImageDraw.Draw(img)
+
+        # 绘制金色圆角与质感边框
+        gold = (212, 175, 55, 255)
+        gold_light = (245, 222, 130, 255)
+        draw.rounded_rectangle([(24, 24), (488, 488)], radius=80, outline=gold, width=8)
+
+        # 绘制书本轮廓
+        draw.arc([(150, 160), (256, 260)], start=180, end=360, fill=gold, width=6)
+        draw.arc([(256, 160), (362, 260)], start=180, end=360, fill=gold, width=6)
+        draw.line([(256, 210), (256, 320)], fill=gold, width=6)
+        draw.line([(150, 260), (150, 320)], fill=gold, width=6)
+        draw.line([(362, 260), (362, 320)], fill=gold, width=6)
+        draw.arc([(150, 270), (256, 370)], start=0, end=180, fill=gold, width=6)
+        draw.arc([(256, 270), (362, 370)], start=0, end=180, fill=gold, width=6)
+
+        # 写入 NCE3 艺术字
+        draw.text((256, 390), "NCE 3", fill=gold_light, anchor="mm", font_size=56)
+
+        # 保存为各分辨率图标
+        paths = [
+            "app/src/main/res/mipmap/ic_launcher.png",
+            "app/src/main/res/mipmap-mdpi/ic_launcher.png",
+            "app/src/main/res/mipmap-hdpi/ic_launcher.png",
+            "app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+            "app/src/main/res/mipmap-xxhdpi/ic_launcher.png"
+        ]
+        for p in paths:
+            img.save(p)
+        print("Icon generated successfully!")
+        EOF
 
     - name: Build with Gradle
       run: |
-        chmod +x ./gradlew || true
-        gradle assembleRelease
+        gradle assembleRelease --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
